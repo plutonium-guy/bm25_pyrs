@@ -20,6 +20,26 @@ permissions:
 
 jobs:
 
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Create virtualenv
+        run: python -m venv .venv
+      - name: Install dependencies
+        run: |
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install maturin pytest pytest-benchmark numpy
+      - name: Build extension
+        run: .venv/bin/maturin develop --release
+        env:
+          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
+      - name: Run tests
+        run: .venv/bin/pytest tests/ -v --benchmark-disable
+
   windows:
     runs-on: ${{ matrix.platform.runner }}
     strategy:

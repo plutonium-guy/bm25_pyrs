@@ -1,32 +1,56 @@
 // Additional optimization utilities for BM25 implementations
 
 use rayon::prelude::*;
-use smallvec::SmallVec;
 use string_interner::DefaultSymbol;
 
-/// Optimized query preprocessing that can be reused across multiple documents
-#[derive(Clone)]
-pub struct PreprocessedQuery {
-    pub symbols: SmallVec<[DefaultSymbol; 8]>,
-    pub idf_values: SmallVec<[(DefaultSymbol, f64); 8]>,
-    pub is_empty: bool,
+/// Partial top-k selection using nth_element-style partial sort.
+pub fn select_top_k_indices(scores: &[f64], k: usize) -> Vec<usize> {
+    if k >= scores.len() {
+        let mut indices: Vec<usize> = (0..scores.len()).collect();
+        indices.par_sort_unstable_by(|&a, &b| scores[b].partial_cmp(&scores[a]).unwrap());
+        return indices;
+    }
+
+    let mut indexed_scores: Vec<(usize, f64)> = scores
+        .iter()
+        .enumerate()
+        .map(|(i, &score)| (i, score))
+        .collect();
+
+    indexed_scores.select_nth_unstable_by(k, |a, b| b.1.partial_cmp(&a.1).unwrap());
+    indexed_scores[..k].sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+    indexed_scores[..k].iter().map(|(i, _)| *i).collect()
 }
 
-impl PreprocessedQuery {
-    pub fn new() -> Self {
-        Self {
-            symbols: SmallVec::new(),
-            idf_values: SmallVec::new(),
-            is_empty: true,
-        }
+/// Flat parallel document scoring (avoids nested rayon parallelism).
+pub fn score_documents_flat<F>(
+    corpus_size: usize,
+    chunk_size: usize,
+    scorer: F,
+) -> Vec<f64>
+where
+    F: Fn(usize) -> f64 + Sync,
+{
+    if corpus_size == 0 {
+        return Vec::new();
     }
-    
-    pub fn len(&self) -> usize {
-        self.idf_values.len()
-    }
+
+    let effective_chunk = chunk_size.max(1);
+    let chunk_starts: Vec<usize> = (0..corpus_size).step_by(effective_chunk).collect();
+
+    let chunk_scores: Vec<Vec<f64>> = chunk_starts
+        .into_par_iter()
+        .map(|start| {
+            let end = (start + effective_chunk).min(corpus_size);
+            (start..end).map(|i| scorer(i)).collect()
+        })
+        .collect();
+
+    chunk_scores.into_iter().flatten().collect()
 }
 
-/// SIMD-friendly scoring function for better performance on modern CPUs
+/// Legacy alias kept for compatibility with existing chunked API tests.
 #[inline(always)]
 pub fn compute_bm25_score_vectorized(
     query_terms: &[(DefaultSymbol, f64)],
@@ -35,7 +59,6 @@ pub fn compute_bm25_score_vectorized(
     norm_factor: f64,
     k1_plus1: f64,
 ) -> f64 {
-    // Unroll the loop for better performance with small query sizes
     match query_terms.len() {
         0 => 0.0,
         1 => {
@@ -61,23 +84,20 @@ pub fn compute_bm25_score_vectorized(
             }
             score
         }
-        _ => {
-            // For longer queries, use the standard loop
-            query_terms.iter().fold(0.0, |score, &(symbol, idf_val)| {
-                if let Some(&freq) = doc_freq.get(&symbol) {
-                    let freq_f64 = freq as f64;
-                    let numerator = freq_f64 * k1_plus1;
-                    let denominator = freq_f64 + norm_factor;
-                    score + idf_val * (numerator / denominator)
-                } else {
-                    score
-                }
-            })
-        }
+        _ => query_terms.iter().fold(0.0, |score, &(symbol, idf_val)| {
+            if let Some(&freq) = doc_freq.get(&symbol) {
+                let freq_f64 = freq as f64;
+                let numerator = freq_f64 * k1_plus1;
+                let denominator = freq_f64 + norm_factor;
+                score + idf_val * (numerator / denominator)
+            } else {
+                score
+            }
+        }),
     }
 }
 
-/// Cache-friendly batch processing for better memory access patterns
+/// Chunked parallel scoring without nested rayon pools.
 pub fn process_documents_in_chunks<F>(
     total_docs: usize,
     chunk_size: usize,
@@ -86,35 +106,18 @@ pub fn process_documents_in_chunks<F>(
 where
     F: Fn(usize, usize) -> Vec<f64> + Send + Sync,
 {
-    let chunks: Vec<(usize, usize)> = (0..total_docs)
-        .step_by(chunk_size)
-        .map(|start| (start, (start + chunk_size).min(total_docs)))
-        .collect();
-
-    chunks
-        .into_par_iter()
-        .flat_map(|(start, end)| processor(start, end))
-        .collect()
-}
-
-/// Optimized top-k selection using partial sorting
-pub fn select_top_k_indices(scores: &[f64], k: usize) -> Vec<usize> {
-    if k >= scores.len() {
-        let mut indices: Vec<usize> = (0..scores.len()).collect();
-        indices.par_sort_unstable_by(|&a, &b| scores[b].partial_cmp(&scores[a]).unwrap());
-        return indices;
+    if total_docs == 0 {
+        return Vec::new();
     }
 
-    // Use partial sort for better performance when k << n
-    let mut indexed_scores: Vec<(usize, f64)> = scores
-        .iter()
-        .enumerate()
-        .map(|(i, &score)| (i, score))
-        .collect();
+    let effective_chunk = chunk_size.max(1);
+    let chunk_starts: Vec<usize> = (0..total_docs).step_by(effective_chunk).collect();
 
-    // Partial sort - only sort the top k elements
-    indexed_scores.select_nth_unstable_by(k, |a, b| b.1.partial_cmp(&a.1).unwrap());
-    indexed_scores[..k].sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-
-    indexed_scores[..k].iter().map(|(i, _)| *i).collect()
+    chunk_starts
+        .into_par_iter()
+        .flat_map(|start| {
+            let end = (start + effective_chunk).min(total_docs);
+            processor(start, end)
+        })
+        .collect()
 }

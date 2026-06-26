@@ -47,7 +47,7 @@ def compare_scoring_methods():
     corpus, queries = generate_test_data(10000, 100)
     
     try:
-        from bm25_pyrs import BM25Okapi
+        from bm25_rs import BM25Okapi
         
         bm25 = BM25Okapi(corpus)
         test_query = queries[0].lower().split()
@@ -92,7 +92,7 @@ def compare_top_n_methods():
     corpus, queries = generate_test_data(10000, 100)
     
     try:
-        from bm25_pyrs import BM25Okapi
+        from bm25_rs import BM25Okapi
         
         bm25 = BM25Okapi(corpus)
         test_query = queries[0].lower().split()
@@ -142,7 +142,7 @@ def benchmark_batch_vs_individual():
     corpus, queries = generate_test_data(5000, 100)
     
     try:
-        from bm25_pyrs import BM25Okapi
+        from bm25_rs import BM25Okapi
         
         bm25 = BM25Okapi(corpus)
         test_queries = [q.lower().split() for q in queries[:50]]
@@ -194,7 +194,7 @@ def memory_efficiency_test():
             corpus, _ = generate_test_data(size, 50)
             
             try:
-                from bm25_pyrs import BM25Okapi
+                from bm25_rs import BM25Okapi
                 
                 start_time = time.time()
                 bm25 = BM25Okapi(corpus)
