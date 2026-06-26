@@ -188,37 +188,33 @@ jobs:
         path: dist
 
   macos:
-    runs-on: ${{ matrix.platform.runner }}
+    runs-on: macos-latest
     needs: [version-bump]
     if: always() && (startsWith(github.ref, 'refs/tags/') || (needs.version-bump.result == 'success' && needs.version-bump.outputs.should_build == 'true'))
     strategy:
       matrix:
-        platform:
-          - runner: macos-13
-            target: x86_64
-          - runner: macos-14
-            target: aarch64
+        target: [aarch64, x86_64]
     steps:
     - uses: actions/checkout@v4
-    
+
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
-    
+        python-version: '3.x'
+
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       env:
         PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
       with:
-        target: ${{ matrix.platform.target }}
+        target: ${{ matrix.target }}
         args: --release --out dist --find-interpreter
         sccache: 'true'
         rust-toolchain: stable
-    
+
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-macos-${{ matrix.platform.target }}
+        name: wheels-macos-${{ matrix.target }}
         path: dist
 
   linux:
