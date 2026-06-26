@@ -36,22 +36,13 @@ classifiers = [
     "Topic :: Text Processing :: Indexing",
 ]
 requires-python = ">=3.8"
-dependencies = [
-    "pytest>=8.3.5",
-    "twine>=6.1.0",
-]
-
-[project.urls]
-Homepage = "https://github.com/dorianbrown/rank_bm25"
-Documentation = "https://github.com/dorianbrown/rank_bm25#readme"
-Repository = "https://github.com/dorianbrown/rank_bm25.git"
-"Bug Tracker" = "https://github.com/dorianbrown/rank_bm25/issues"
-Changelog = "https://github.com/dorianbrown/rank_bm25/blob/main/CHANGELOG.md"
+dependencies = []
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
     "pytest-benchmark>=4.0",
+    "twine>=6.1.0",
     "black>=22.0",
     "ruff>=0.1.0",
     "mypy>=1.0",
@@ -62,8 +53,15 @@ benchmark = [
     "numpy>=1.21.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/dorianbrown/rank_bm25"
+Documentation = "https://github.com/dorianbrown/rank_bm25#readme"
+Repository = "https://github.com/dorianbrown/rank_bm25.git"
+"Bug Tracker" = "https://github.com/dorianbrown/rank_bm25/issues"
+Changelog = "https://github.com/dorianbrown/rank_bm25/blob/main/CHANGELOG.md"
+
 [tool.maturin]
-features = ["pyo3/extension-module"]
+features = ["numpy"]
 python-source = "python"
 module-name = "bm25_rs._bm25_rs"
 

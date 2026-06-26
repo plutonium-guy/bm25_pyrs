@@ -17,7 +17,6 @@ recursive-include python *.py
 recursive-include tests *.py
 
 # Include benchmarks and examples
-recursive-include benchmarks *.py
 recursive-include examples *.py
 
 # Exclude development files

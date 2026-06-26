@@ -40,7 +40,7 @@ def benchmark_initialization(corpus_sizes: List[int]):
         
         # Test Rust BM25Okapi
         try:
-            from bm25_pyrs import BM25Okapi as BM25Rust
+            from bm25_rs import BM25Okapi as BM25Rust
             
             gc.collect()  # Clean memory before test
             start_time = time.time()
@@ -65,7 +65,7 @@ def benchmark_query_performance(corpus_size: int = 10000, num_queries: int = 100
     corpus, vocabulary = generate_realistic_corpus(corpus_size, 100)
     
     try:
-        from bm25_pyrs import BM25Okapi as BM25Rust
+        from bm25_rs import BM25Okapi as BM25Rust
         
         # Initialize
         print("Initializing BM25...")
@@ -117,7 +117,7 @@ def benchmark_concurrent_queries(corpus_size: int = 10000, num_threads: int = 4,
     corpus, vocabulary = generate_realistic_corpus(corpus_size, 100)
     
     try:
-        from bm25_pyrs import BM25Okapi as BM25Rust
+        from bm25_rs import BM25Okapi as BM25Rust
         
         bm25_rust = BM25Rust(corpus)
         
@@ -165,7 +165,7 @@ def benchmark_batch_operations(corpus_size: int = 10000):
     corpus, vocabulary = generate_realistic_corpus(corpus_size, 100)
     
     try:
-        from bm25_pyrs import BM25Okapi as BM25Rust
+        from bm25_rs import BM25Okapi as BM25Rust
         
         bm25_rust = BM25Rust(corpus)
         query = ' '.join(random.choices(vocabulary, k=3))
@@ -215,7 +215,7 @@ def profile_memory_usage():
             corpus, _ = generate_realistic_corpus(size, 100)
             
             try:
-                from bm25_pyrs import BM25Okapi as BM25Rust
+                from bm25_rs import BM25Okapi as BM25Rust
                 bm25_rust = BM25Rust(corpus)
                 
                 # Measure after

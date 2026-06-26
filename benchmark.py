@@ -33,7 +33,7 @@ def benchmark_bm25():
     
     try:
         # Try to import the optimized Rust version
-        from bm25_pyrs import BM25Okapi as BM25Rust
+        from bm25_rs import BM25Okapi as BM25Rust
         
         print("Testing optimized Rust BM25...")
         start_time = time.time()
